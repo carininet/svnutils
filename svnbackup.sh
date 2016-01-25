@@ -179,9 +179,9 @@ writerepositorydump()
 
 # -= Main =-
 
-SCRIPT="$(readlink -nf ${0})"
-HOMEDIR="$(dirname ${SCRIPT})"
-COMMAND="$(basename ${SCRIPT} .${SCRIPT##*.})"
+SCRIPT=$(readlink -nf "${0}")
+HOMEDIR=$(dirname "${SCRIPT}")
+COMMAND=$(basename "${SCRIPT}" ".${SCRIPT##*.}")
 ARCHIVE="./backup"
 
 if [ ${#} -lt 2 ] || [ "${1}" = "-h" ]; then
