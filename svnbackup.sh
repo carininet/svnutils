@@ -5,6 +5,7 @@
 #
 # 15/01/2015 V1.0 - Alessandro Carini
 # 19/01/2015 V1.1 - Alessandro Carini (svndumpfile info added in control file)
+# 31/01/2015 V1.2 - Improved handling of pathname with spaces
 #
 
 
@@ -45,7 +46,7 @@ readcontrolfile()
 	# we need to read the first lines only
 	while read -r line
 	do
-		local cf_line="$(echo "${line}" | awk -F '\[|\:|\]' "/^\[([0-9]|[a-f]|[A-F]|-)+:([0-9])+\]$/ { print \$2 \" \" \$3 }")"
+		local cf_line=$(echo "${line}" | awk -F '\[|\:|\]' "/^\[([0-9]|[a-f]|[A-F]|-)+:([0-9])+\]$/ { print \$2 \" \" \$3 }")
 		if [ ! -z "${cf_line}" ]; then
 read cf_repouuid cf_lastsave << __EOF__
 ${cf_line}
@@ -82,8 +83,8 @@ readrepositorystat()
 	fi
 
 	# get current timestamp and HEAD revision
-	repouuid="$(svnlook uuid "${repository}")" || { result=$?; errormsg="error: ${repouuid}"; return ${result}; }
-	repodate="$(svnlook date "${repository}")" || { result=$?; errormsg="error: ${repodate}"; return ${result}; }
+	repouuid=$(svnlook uuid "${repository}") || { result=$?; errormsg="error: ${repouuid}"; return ${result}; }
+	repodate=$(svnlook date "${repository}") || { result=$?; errormsg="error: ${repodate}"; return ${result}; }
 	repohead=$(svnlook youngest "${repository}") || { result=$?; errormsg="error: ${repohead}"; return ${result}; }
 	svndumpfile=""
 	lastsave=-1
@@ -123,7 +124,7 @@ writecontrolfile()
 	fi
 
 	createbackupdir "" || return $?
-	errormsg=$(touch "${controlfile}" && echo "${section}" > "${controlfile}.tmp" && cat "${controlfile}" >> "${controlfile}.tmp" && mv "${controlfile}.tmp" "${controlfile}") || return $?
+	errormsg=$(touch "${controlfile}" && echo -e "${section}" > "${controlfile}.tmp" && cat "${controlfile}" >> "${controlfile}.tmp" && mv "${controlfile}.tmp" "${controlfile}") || return $?
 
 	errormsg=""
 	return 0
@@ -200,8 +201,8 @@ fi
 sysdate=$(date '+%F %T %z (%a, %d %b %Y)')
 
 # truncate trailing '/' after directory name
-repository=$(dirname "${2}/dummy")
-backupdir="${ARCHIVE}/$(basename ${repository})"
+repository=$(dirname "${2}/.")
+backupdir="${ARCHIVE}"/$(basename "${repository}")
 
 # get command
 case "${1}" in
