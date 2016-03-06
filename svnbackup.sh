@@ -7,6 +7,7 @@
 # 19/01/2015 V1.1 - Alessandro Carini (svndumpfile info added in control file)
 # 31/01/2015 V1.2 - Improved handling of pathname with spaces
 # 20/02/2016 V2.0 - Arguments parsed with getopts
+# 05/03/2016 V2.1 - Verbose and Very Verbose switch added
 #
 
 
@@ -57,6 +58,7 @@ readcontrolfile()
 	fi
 
 	# we need to read the first lines only
+	[[ $VERBOSITY -gt 0 ]] && { echo "info: reading control file"; }
 	while read -r line
 	do
 		local cf_line=$(echo "${line}" | awk -F '\[|\:|\]' "/^\[([0-9]|[a-f]|[A-F]|-)+:([0-9])+\]$/ { print \$2 \" \" \$3 }")
@@ -64,6 +66,8 @@ readcontrolfile()
 read cf_repouuid cf_lastsave << __EOF__
 ${cf_line}
 __EOF__
+
+			[[ $VERBOSITY -gt 1 ]] && { echo "debug: cf_repouuid=${cf_repouuid}, cf_lastsave=${cf_lastsave}" ; }
 			errormsg=""
 			return 0
 		fi
@@ -96,6 +100,7 @@ readrepositorystat()
 	fi
 
 	# get current timestamp and HEAD revision
+	[[ $VERBOSITY -gt 0 ]] && { echo "info: reading repository statistics"; }
 	repouuid=$(svnlook uuid "${REPOSITORY}") || { result=$?; errormsg="error: ${repouuid}"; return ${result}; }
 	repodate=$(svnlook date "${REPOSITORY}") || { result=$?; errormsg="error: ${repodate}"; return ${result}; }
 	repohead=$(svnlook youngest "${REPOSITORY}") || { result=$?; errormsg="error: ${repohead}"; return ${result}; }
@@ -105,6 +110,7 @@ readrepositorystat()
 	# define control file
 	controlfile="${BACKUPDIR}/${repouuid}.cf"
 
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: repouuid=${repouuid}, repodate=${repodate}, repohead=${repohead}" ; }
 	errormsg=""
 	return 0
 }
@@ -120,9 +126,11 @@ createbackupdir()
 	fi
 
 	if [[ ! -d "${directory}" ]]; then
+		[[ $VERBOSITY -gt 0 ]] && { echo "info: creating backup directory"; }
 		errormsg=$(mkdir -p "${directory}") || { result=$?; exit ${result}; }
 	fi
 
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: backup directory ${directory}"; }
 	errormsg=""
 	return 0
 }
@@ -136,8 +144,11 @@ writecontrolfile()
 	fi
 
 	createbackupdir "" || return $?
+
+	[[ $VERBOSITY -gt 0 ]] && { echo "info: writing control file"; }
 	errormsg=$(touch "${controlfile}" && echo -e "${section}" > "${controlfile}.tmp" && cat "${controlfile}" >> "${controlfile}.tmp" && mv "${controlfile}.tmp" "${controlfile}") || return $?
 
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: section=${section}" ; }
 	errormsg=""
 	return 0
 }
@@ -162,10 +173,10 @@ writerepositorydump()
 
 	# check if dumpfile is already present
 	if [[ -r "${svndumpfile}.dump" ]] || [[ -r "${svndumpfile}.dump.gz" ]]; then
-		errormsg="file ${svndumpfile} already exist"
+		errormsg="warning: file ${svndumpfile} already exist"
 		return 73
 	elif [[ ${lastsave} -gt ${repohead} ]]; then
-		errormsg="revision ${repohead} already saved"
+		errormsg="warning: revision ${repohead} already saved"
 		return 73
 	fi
 
@@ -173,6 +184,7 @@ writerepositorydump()
 	createbackupdir "${method}" || return $?
 
 	# do actual backup - -err file will be removed at the end
+	[[ $VERBOSITY -gt 0 ]] && { echo "info: writing repository dump"; }
 	errormsg=$(touch "${svndumpfile}.err") || return $?
 	(svnadmin dump -q ${parameters} "${REPOSITORY}" 2>"${svndumpfile}.err" && rm "${svndumpfile}.err") | gzip > "${svndumpfile}.dump.gz" || { errormsg="error compressing ${svndumpfile}.dump.gz"; exit $?; }
 
@@ -185,6 +197,7 @@ writerepositorydump()
 	# check if gzip file is correct
 	errormsg=$(gzip -t "${svndumpfile}.dump.gz") || return $?
 
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: ${svndumpfile}.dump.gz created" ; }
 	errormsg=""
 	return 0
 }
@@ -257,10 +270,11 @@ case "${COMMAND}" in
 		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		;;
 	*)
-		echo "Invalid command arguments (${MYSELF} -h for help)"
-		exit 64
+		echo "error: internal error"
+		exit 70
 		;;
 esac
 
 echo "done"
 exit 0
+
