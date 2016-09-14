@@ -9,6 +9,7 @@
 # 20/02/2016 V2.0 - Arguments parsed with getopts
 # 05/03/2016 V2.1 - Verbose and Very Verbose switch added
 # 03/05/2016 V2.2 - Pidfile check added
+# 12/09/2016 V2.3 - Bugfix release
 #
 
 
@@ -28,7 +29,7 @@ Usage: ${MYSELF} <command> [<switches>...] repository
 	-C	: Build control file *DANGER!*
 <Options>
 	-b dir	: Override config Use different backupdir
-	-v	: Set verbose mode
+	-v	: Set verbose or very verbose (-vv) mode
 
 <Exit Codes>
 	0	: success
@@ -45,42 +46,7 @@ __EOF__
 	return 0
 }
 
-# Write .pid file, and return 0 upon success
-writepidfile()
-{
-	local otherpid=-1
-
-	# Check if there is another istance running:
-	if [[ -r "${processfile}" ]]; then
-		read otherpid < "${processfile}"
-		otherproc=$(ps --no-headers --format user,pid,ppid,cmd --pid ${otherpid}) && { errormsg="warning: backup locked by another session pid=${otherpid} otherproc=${otherproc}, please retry later"; return 75; }
-		removepid=$(rm -f "${processfile}" 2>/dev/null) || { errormsg="error: can't remove ${processfile} file written by another session"; return 70; }
-	fi
-
-	# No other running process found: write pid file and check in lock is succesful
-	(echo $$ >> "${processfile}") 2>/dev/null || { errormsg="error: can't write ${processfile}"; return 70; }
-	read otherpid < "${processfile}"
-	[[ $$ -ne ${otherpid} ]] && { errormsg="warning: can't get lock on ${processfile} owned by process pid=${otherpid}, please retry later"; return 75; }
-
-	return 0
-}
-
-# Remove .pid file and return 0 upon success
-removepidfile()
-{
-	local otherpid=0
-
-	# Safety check: Can't remove other pid
-	read otherpid < "${processfile}"
-	[[ $$ -ne ${otherpid} ]] && { errormsg="warning: can't remove ${processfile} owned by process pid=${otherpid}"; return 75; }
-
-	# Remove pid file owned by this session
-	removepid=$(rm -f "${processfile}") || { errormsg="error: can't remove ${processfile} file written by another session"; return 70; }
-
-	return 0
-}
-
-# reae control file content
+# read control file content
 readcontrolfile()
 {
 	local line=""
@@ -166,8 +132,45 @@ createbackupdir()
 		errormsg=$(mkdir -p "${directory}") || { result=$?; exit ${result}; }
 	fi
 
-	[[ $VERBOSITY -gt 1 ]] && { echo "debug: backup directory ${directory}"; }
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: backup directory=${directory}"; }
 	errormsg=""
+	return 0
+}
+
+# write .pid file, and return 0 upon success
+writepidfile()
+{
+	local otherpid=-1
+
+	createbackupdir || return $?
+
+	# Check if there is another istance running:
+	if [[ -r "${processfile}" ]]; then
+		read otherpid < "${processfile}"
+		otherproc=$(ps --no-headers --format user,pid,ppid,cmd --pid ${otherpid}) && { errormsg="warning: backup locked by another session pid=${otherpid} otherproc=${otherproc}, please retry later"; return 75; }
+		removepid=$(rm -f "${processfile}" 2>/dev/null) || { errormsg="error: can't remove ${processfile} file written by another session"; return 70; }
+	fi
+
+	# No other running process found: write pid file and check in lock is succesful
+	(echo $$ >> "${processfile}") 2>/dev/null || { errormsg="error: can't write ${processfile}"; return 70; }
+	read otherpid < "${processfile}"
+	[[ $$ -ne ${otherpid} ]] && { errormsg="warning: can't get lock on ${processfile} owned by process pid=${otherpid}, please retry later"; return 75; }
+
+	return 0
+}
+
+# remove .pid file and return 0 upon success
+removepidfile()
+{
+	local otherpid=0
+
+	# Safety check: Can't remove other pid
+	read otherpid < "${processfile}"
+	[[ $$ -ne ${otherpid} ]] && { errormsg="warning: can't remove ${processfile} owned by process pid=${otherpid}"; return 75; }
+
+	# Remove pid file owned by this session
+	removepid=$(rm -f "${processfile}") || { errormsg="error: can't remove ${processfile} file written by another session"; return 70; }
+
 	return 0
 }
 
@@ -291,30 +294,30 @@ case "${COMMAND}" in
 		;;
 	'f')
 		method="full"
-		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		readrepositorystat || { result=$?; echo "${errormsg}"; exit ${result}; }
+		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		writerepositorydump || { result=$?; echo "${errormsg}"; exit ${result}; }
 		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		removepidfile || { result=$?; echo "${errormsg}"; exit ${result}; } 
 		;;
 	'd')
 		method="diff"
-		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		readrepositorystat || { result=$?; echo "${errormsg}"; exit ${result}; }
+		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		readcontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		writerepositorydump || { result=$?; echo "${errormsg}"; exit ${result}; }
 		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		removepidfile || { result=$?; echo "${errormsg}"; exit ${result}; } 
 		;;
 	'C')
-		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		readrepositorystat || { result=$?; echo "${errormsg}"; exit ${result}; }
+		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
 		removepidfile || { result=$?; echo "${errormsg}"; exit ${result}; } 
 		;;
 	*)
-		echo "error: internal error"
-		exit 70
+		echo "error: command is mandatory (${MYSELF} -h for help)"
+		exit 64
 		;;
 esac
 
