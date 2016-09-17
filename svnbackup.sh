@@ -67,7 +67,7 @@ readcontrolfile()
 		local cf_line=$(echo "${line}" | awk -F '\[|\:|\]' "/^\[([0-9]|[a-f]|[A-F]|-)+:([0-9])+\]$/ { print \$2 \" \" \$3 }")
 		if [[ ! -z "${cf_line}" ]]; then
 			read cf_repouuid cf_lastsave <<< ${cf_line}
-			[[ $VERBOSITY -gt 1 ]] && { echo "debug: cf_repouuid=${cf_repouuid}, cf_lastsave=${cf_lastsave}" ; }
+			[[ $VERBOSITY -gt 2 ]] && { echo "debug: cf_repouuid=${cf_repouuid}, cf_lastsave=${cf_lastsave}"; }
 			errormsg=""
 			return 0
 		fi
@@ -112,7 +112,8 @@ readrepositorystat()
 	processfile="${BACKUPDIR}/${repouuid}.pid"
 	controlfile="${BACKUPDIR}/${repouuid}.cf"
 
-	[[ $VERBOSITY -gt 1 ]] && { echo "debug: repouuid=${repouuid}, repodate=${repodate}, repohead=${repohead}" ; }
+	[[ $VERBOSITY -gt 2 ]] && { echo "debug: repouuid=${repouuid}, repodate=${repodate}, repohead=${repohead}"; }
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: controlfile is ${controlfile}"; }
 	errormsg=""
 	return 0
 }
@@ -132,7 +133,7 @@ createbackupdir()
 		errormsg=$(mkdir -p "${directory}") || { result=$?; exit ${result}; }
 	fi
 
-	[[ $VERBOSITY -gt 1 ]] && { echo "debug: backup directory=${directory}"; }
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: backup directory is ${directory}"; }
 	errormsg=""
 	return 0
 }
@@ -187,7 +188,7 @@ writecontrolfile()
 	[[ $VERBOSITY -gt 0 ]] && { echo "info: writing control file"; }
 	errormsg=$(touch "${controlfile}" && echo -e "${section}" > "${controlfile}.tmp" && cat "${controlfile}" >> "${controlfile}.tmp" && mv "${controlfile}.tmp" "${controlfile}") || return $?
 
-	[[ $VERBOSITY -gt 1 ]] && { echo "debug: section=${section}" ; }
+	[[ $VERBOSITY -gt 2 ]] && { echo "debug: section=${section}"; }
 	errormsg=""
 	return 0
 }
@@ -236,7 +237,7 @@ writerepositorydump()
 	# check if gzip file is correct
 	errormsg=$(gzip -t "${svndumpfile}.dump.gz") || return $?
 
-	[[ $VERBOSITY -gt 1 ]] && { echo "debug: ${svndumpfile}.dump.gz created" ; }
+	[[ $VERBOSITY -gt 1 ]] && { echo "debug: ${svndumpfile}.dump.gz created"; }
 	errormsg=""
 	return 0
 }
