@@ -10,6 +10,7 @@
 # 05/03/2016 V2.1 - Verbose and Very Verbose switch added
 # 03/05/2016 V2.2 - Pidfile check added
 # 12/09/2016 V2.3 - Bugfix release
+# 28/10/2017 V2.4 - Minor fix (pid file left upon error)
 #
 
 
@@ -39,7 +40,7 @@ Usage: ${MYSELF} <command> [<switches>...] repository
 	70	: internal software error
 	73	: can't create (user) output file
 	74	: input/output error
-	75	: temp failure; user is invited to retry
+	75	: temp failure; please retry
 __EOF__
 
 	errormsg=""
@@ -289,39 +290,46 @@ BACKUPDIR="${ARCHIVE}"/$(basename "${REPOSITORY}")
 # get sysdate, same format usaed by svn utilities
 sysdate=$(date '+%F %T %z (%a, %d %b %Y)')
 
+result=0
+pidsts=0
 case "${COMMAND}" in
 	'h')
 		usage; exit 0
 		;;
 	'f')
 		method="full"
-		readrepositorystat || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writerepositorydump || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		removepidfile || { result=$?; echo "${errormsg}"; exit ${result}; } 
+		readrepositorystat				|| { result=$?; echo "${errormsg}" >&2; exit ${result}; }
+		writepidfile					|| { pidsts=$?; echo "${errormsg}" >&2; exit ${pidsts}; }
+		writerepositorydump				|| { result=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; }
+		[[ ${pidsts} -eq 0 ]] && removepidfile		|| { pidsts=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && { echo "full backup completed"; }
 		;;
 	'd')
 		method="diff"
-		readrepositorystat || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		readcontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writerepositorydump || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		removepidfile || { result=$?; echo "${errormsg}"; exit ${result}; } 
+		readrepositorystat				|| { result=$?; echo "${errormsg}" >&2; exit ${result}; }
+		writepidfile					|| { pidsts=$?; echo "${errormsg}" >&2; exit ${pidsts}; }
+		readcontrolfile					|| { result=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && writerepositorydump	|| { result=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; }
+		[[ ${pidsts} -eq 0 ]] && removepidfile		|| { pidsts=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && { echo "diff backup completed"; }
 		;;
 	'C')
-		readrepositorystat || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writepidfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		writecontrolfile || { result=$?; echo "${errormsg}"; exit ${result}; }
-		removepidfile || { result=$?; echo "${errormsg}"; exit ${result}; } 
+		readrepositorystat				|| { result=$?; echo "${errormsg}" >&2; exit ${result}; }
+		writepidfile					|| { pidsts=$?; echo "${errormsg}" >&2; exit ${pidsts}; }
+		[[ ${result} -eq 0 ]] && writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; }
+		[[ ${pidsts} -eq 0 ]] && removepidfile		|| { pidsts=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && { echo "control file built"; }
 		;;
 	*)
-		echo "error: command is mandatory (${MYSELF} -h for help)"
-		exit 64
+		echo "error: command is mandatory (${MYSELF} -h for help)" >&2
+		result=64
+		pidsts=0
 		;;
 esac
 
-echo "done"
-exit 0
+# If repository read/write is succesful report pid file manipulation error (if any)
+[[ ${result} -eq 0 ]] && { exit ${pidsts}; }
+exit ${result}
 
