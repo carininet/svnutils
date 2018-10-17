@@ -65,7 +65,7 @@ readcontrolfile()
 	[[ $VERBOSITY -gt 0 ]] && { echo "info: reading control file"; }
 	while read -r line
 	do
-		local cf_line=$(echo "${line}" | awk -F '\[|\:|\]' "/^\[([0-9]|[a-f]|[A-F]|-)+:([0-9])+\]$/ { print \$2 \" \" \$3 }")
+		local cf_line=$(echo "${line}" | awk -F '\\[|\\:|\\]' "/^\[([0-9]|[a-f]|[A-F]|-)+:([0-9])+\]$/ { print \$2 \" \" \$3 }")
 		if [[ ! -z "${cf_line}" ]]; then
 			read cf_repouuid cf_lastsave <<< ${cf_line}
 			[[ $VERBOSITY -gt 2 ]] && { echo "debug: cf_repouuid=${cf_repouuid}, cf_lastsave=${cf_lastsave}"; }
