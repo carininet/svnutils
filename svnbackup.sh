@@ -11,6 +11,7 @@
 # 03/05/2016 V2.2 - Pidfile check added
 # 12/09/2016 V2.3 - Bugfix release
 # 28/10/2017 V2.4 - Minor fix (pid file left upon error)
+# 26/05/2020 V2.5 - Minor fix (error messages printed twice)
 #
 
 
@@ -301,8 +302,8 @@ case "${COMMAND}" in
 		readrepositorystat				|| { result=$?; echo "${errormsg}" >&2; exit ${result}; }
 		writepidfile					|| { pidsts=$?; echo "${errormsg}" >&2; exit ${pidsts}; }
 		writerepositorydump				|| { result=$?; echo "${errormsg}" >&2; }
-		[[ ${result} -eq 0 ]] && writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; }
-		[[ ${pidsts} -eq 0 ]] && removepidfile		|| { pidsts=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && { writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; } }
+		[[ ${pidsts} -eq 0 ]] && { removepidfile	|| { pidsts=$?; echo "${errormsg}" >&2; } }
 		[[ ${result} -eq 0 ]] && { echo "full backup completed"; }
 		;;
 	'd')
@@ -310,16 +311,16 @@ case "${COMMAND}" in
 		readrepositorystat				|| { result=$?; echo "${errormsg}" >&2; exit ${result}; }
 		writepidfile					|| { pidsts=$?; echo "${errormsg}" >&2; exit ${pidsts}; }
 		readcontrolfile					|| { result=$?; echo "${errormsg}" >&2; }
-		[[ ${result} -eq 0 ]] && writerepositorydump	|| { result=$?; echo "${errormsg}" >&2; }
-		[[ ${result} -eq 0 ]] && writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; }
-		[[ ${pidsts} -eq 0 ]] && removepidfile		|| { pidsts=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && { writerepositorydump	|| { result=$?; echo "${errormsg}" >&2; } }
+		[[ ${result} -eq 0 ]] && { writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; } }
+		[[ ${pidsts} -eq 0 ]] && { removepidfile	|| { pidsts=$?; echo "${errormsg}" >&2; } }
 		[[ ${result} -eq 0 ]] && { echo "diff backup completed"; }
 		;;
 	'C')
 		readrepositorystat				|| { result=$?; echo "${errormsg}" >&2; exit ${result}; }
 		writepidfile					|| { pidsts=$?; echo "${errormsg}" >&2; exit ${pidsts}; }
-		[[ ${result} -eq 0 ]] && writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; }
-		[[ ${pidsts} -eq 0 ]] && removepidfile		|| { pidsts=$?; echo "${errormsg}" >&2; }
+		[[ ${result} -eq 0 ]] && { writecontrolfile	|| { result=$?; echo "${errormsg}" >&2; } }
+		[[ ${pidsts} -eq 0 ]] && { removepidfile	|| { pidsts=$?; echo "${errormsg}" >&2; } }
 		[[ ${result} -eq 0 ]] && { echo "control file built"; }
 		;;
 	*)
